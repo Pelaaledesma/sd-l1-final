@@ -2,40 +2,45 @@ import minimist from "minimist";
 import { PelisController } from "./controllers";
 import { Peli } from "./models";
 
-function parseaParams(argv: string[]): any {
-  const resultado = minimist(argv);
-
-  return resultado;
-}
-const controller = new PelisController();
-
 async function main() {
-  const params = parseaParams(process.argv.slice(2));
+  const [cmd, ...rest] = process.argv.slice(2);
+  const params = minimist(rest);
 
-  console.log(params);
+  const controller = new PelisController();
 
-  if (params.add) {
-    const peli: Peli = {
-      id: params.id,
-      title: params.title,
-      tags: typeof params.tags === "string" ? params.tags.split(",") : [],
-    };
-
-    const resultado = await controller.add(peli);
-    console.log(
-      resultado ? "Pelicula agregada ✅" : "Error al agregar la pelicula ❌"
-    );
-  } else if (params.get) {
-    const peli = await controller.getOne({ id: params.get });
-
-    console.log(peli || "Pelicula no encontrada ❌");
-  } else if (params.search) {
-    const resultados = await controller.get({
-      search: { title: params.search },
-    });
-    console.log(resultados);
-  } else {
-    console.log("Comando no reconocido ❌");
+  switch (cmd) {
+    case "add": {
+      const tags = Array.isArray(params.tags)
+        ? params.tags
+        : params.tags
+        ? [params.tags]
+        : [];
+      const peli: Peli = {
+        id: params.id,
+        title: params.title,
+        tags,
+      };
+      const ok = await controller.add(peli);
+      console.log(ok ? "Pelicula agregada ✅" : "Error al agregar ❌");
+      break;
+    }
+    case "get": {
+      const id = Number(rest[0]);
+      const peli = await controller.getOne({ id });
+      console.log(peli || "Pelicula no encontrada ❌");
+      break;
+    }
+    case "search": {
+      const opts: any = {};
+      if (params.title) opts.title = params.title;
+      if (params.tag) opts.tag = params.tag;
+      const res = await controller.get({ search: opts });
+      console.log(res);
+      break;
+    }
+    default:
+      // si no hay cmd o no es válido, listamos todo
+      console.log(await controller.get());
   }
 }
 
